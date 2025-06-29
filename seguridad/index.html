@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Subida y extracción con LM Studio</title>
+  <style>
+    body { font-family: sans-serif; max-width: 900px; margin: auto; padding: 1rem; }
+    #drop-area { border: 2px dashed #666; padding: 2rem; text-align: center; margin-bottom: 1rem; cursor: pointer; }
+    #drop-area.hover { background: #f0f0f0; }
+    #fileElem { display: none; }
+    #selectedFilesPreview { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 1rem; }
+    .file-preview { display: flex; flex-direction: column; align-items: center; width: 100px; padding: 5px; border: 1px solid #ddd; border-radius: 5px; font-size: 0.8em; word-break: break-all; }
+    .file-preview img { max-width: 90px; max-height: 90px; object-fit: contain; margin-bottom: 5px; }
+    button { padding: .5rem 1rem; border: none; background: #007bff; color: #fff; border-radius: .25rem; cursor: pointer; margin: .5rem .25rem; }
+    button:hover { background: #0056b3; }
+    progress { width: 100%; height: 1.5rem; margin: 1rem 0; }
+    #log { background: #f8f9fa; padding: 1rem; margin-top: 1rem; border-radius: .25rem; max-height: 200px; overflow: auto; font-family: monospace; }
+    #output-container { margin-top: 1rem; display: block; }
+    .image-result { display: flex; flex-direction: column; border: 1px solid #ccc; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
+    .image-result img { width: 100px; height: 100px; object-fit: contain; margin-bottom: 10px; border: 1px solid #eee; }
+    .image-result p { margin: 2px 0; }
+    #controls { display: none; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Extrae palabras clave de imágenes</h1>
+  <div id="drop-area">
+    <p>Arrastra tus imágenes aquí o haz clic para seleccionar</p>
+    <input type="file" id="fileElem" accept="image/*" multiple>
+    <button id="browseBtn">Seleccionar ficheros</button>
+    <div id="selectedFilesPreview"></div>
+  </div>
+  <button id="uploadBtn">Subir y procesar</button>
+  <button type="button" onclick="window.location.reload();">Limpiar</button>
+  <progress id="uploadProgress" max="100" value="0"></progress>
+  <div id="log" role="log"></div>
+  <div id="output-container" role="region"></div>
+  <div id="controls">
+    <button id="copyAllBtn">Copiar todos los resultados</button>
+    <button id="downloadJsonAll">Descargar JSON (todos)</button>
+    <button id="downloadCsvAll">Descargar CSV (todos)</button>
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const dropArea = document.getElementById("drop-area");
+      const fileInput = document.getElementById("fileElem");
+      const browseBtn = document.getElementById("browseBtn");
+      const uploadBtn = document.getElementById("uploadBtn");
+      const progressBar = document.getElementById("uploadProgress");
+      const logDiv = document.getElementById("log");
+      const outputContainer = document.getElementById("output-container");
+      const controls = document.getElementById("controls");
+      const selectedFilesPreview = document.getElementById("selectedFilesPreview");
+      let allResults = {};
+      let selectedFiles = [];
+
+      function displaySelectedFiles() {
+        selectedFilesPreview.innerHTML = "";
+        selectedFiles.forEach(file => {
+          const reader = new FileReader();
+          reader.onload = e => {
+            const previewDiv = document.createElement("div"); previewDiv.classList.add("file-preview");
+            const img = document.createElement("img"); img.src = e.target.result;
+            const fileNameSpan = document.createElement("span"); fileNameSpan.textContent = file.name;
+            previewDiv.appendChild(img); previewDiv.appendChild(fileNameSpan);
+            selectedFilesPreview.appendChild(previewDiv);
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      dropArea.addEventListener('click', () => fileInput.click());
+      browseBtn.addEventListener('click', e => { e.stopPropagation(); fileInput.click(); });
+      ['dragenter','dragover'].forEach(evt => dropArea.addEventListener(evt, ev => { ev.preventDefault(); ev.stopPropagation(); dropArea.classList.add('hover'); }));
+      ['dragleave','drop'].forEach(evt => dropArea.addEventListener(evt, ev => { ev.preventDefault(); ev.stopPropagation(); dropArea.classList.remove('hover'); }));
+      dropArea.addEventListener('drop', ev => {
+        ev.preventDefault(); selectedFiles = Array.from(ev.dataTransfer.files).filter(f => f.type.startsWith('image/')); displaySelectedFiles();
+      });
+      fileInput.addEventListener('change', () => { selectedFiles = Array.from(fileInput.files).filter(f => f.type.startsWith('image/')); displaySelectedFiles(); });
+
+      uploadBtn.addEventListener("click", () => {
+        if (!selectedFiles.length) return alert("Selecciona al menos una imagen primero");
+        allResults = {}; progressBar.value = 0; logDiv.innerHTML = ""; outputContainer.innerHTML = ""; controls.style.display = "none";
+        const form = new FormData(); selectedFiles.forEach(file => form.append("files", file));
+        const xhr = new XMLHttpRequest(); xhr.open("POST", "/upload");
+        xhr.upload.onprogress = e => { if (e.lengthComputable) progressBar.value = (e.loaded/e.total)*100; };
+        xhr.onload = () => {
+          const { task_id, uploaded_images } = JSON.parse(xhr.responseText);
+          uploaded_images.forEach(img => {
+            const div = document.createElement("div"); div.classList.add("image-result"); div.setAttribute("data-image-id", img.image_id);
+            const imgEl = document.createElement("img"); const original = selectedFiles.find(f => f.name===img.filename);
+            if (original) { imgEl.src = URL.createObjectURL(original); imgEl.onload = ()=>URL.revokeObjectURL(imgEl.src); }
+            const descPara = document.createElement("p"); descPara.classList.add("description");
+            
+            const kwPara = document.createElement("p"); kwPara.classList.add("keywords");
+            
+            div.appendChild(imgEl); div.appendChild(descPara); div.appendChild(kwPara); outputContainer.appendChild(div);
+            allResults[img.image_id] = { filename: img.filename, description: "", keywords: "" };
+          });
+          listenSSE(task_id);
+        };
+        xhr.onerror = () => alert("Error al subir"); xhr.send(form);
+      });
+
+      function listenSSE(taskId) {
+        const es = new EventSource(`/stream/${taskId}`);
+        es.addEventListener("image_complete", e => {
+          const id = e.lastEventId;
+          try {
+            const obj = JSON.parse(e.data);
+            allResults[id].description = obj.description || "";
+            allResults[id].keywords = obj.keywords || "";
+          } catch (err) {
+            console.error("Error al parsear JSON:", err);
+          }
+          updateUI(id);
+        });
+        es.addEventListener("status", e => { const p = document.createElement("p"); p.textContent = e.data; logDiv.appendChild(p); logDiv.scrollTop = logDiv.scrollHeight; });
+        es.addEventListener("end", () => { controls.style.display = "block"; es.close(); });
+      }
+
+      function updateUI(id) {
+        const container = document.querySelector(`.image-result[data-image-id="${id}"]`);
+        if (!container) return;
+        const descPara = container.querySelector('p.description');
+        const kwPara = container.querySelector('p.keywords');
+        
+      }
+
+      document.getElementById("copyAllBtn").onclick = () => {
+        let txt = "";
+        for (const id in allResults) {
+          const r = allResults[id];
+          txt += `File: ${r.filename}\nDescripción: ${r.description}\nPalabras clave: ${r.keywords}\n\n`;
+        }
+        navigator.clipboard.writeText(txt);
+        alert("Resultados copiados");
+      };
+
+      document.getElementById("downloadJsonAll").onclick = () => {
+        const data = Object.values(allResults).map(r => ({ filename: r.filename, description: r.description, keywords: r.keywords }));
+        const b = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "resultados.json"; a.click(); URL.revokeObjectURL(a.href);
+      };
+      document.getElementById("downloadCsvAll").onclick = () => {
+        let c = "Filename,Description,Keywords\n";
+        for (const id in allResults) {
+          const r = allResults[id];
+          c += `"${r.filename.replace(/"/g,'""')}","${r.description.replace(/"/g,'""')}","${r.keywords.replace(/"/g,'""')}"\n`;
+        }
+        const b = new Blob([c], { type: 'text/csv' }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "resultados.csv"; a.click(); URL.revokeObjectURL(a.href);
+      };
+    });
+  </script>
+</body>
+</html>
