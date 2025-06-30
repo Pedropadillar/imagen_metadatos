@@ -48,10 +48,15 @@ Este proyecto es una aplicación web simple que permite subir una o varias imág
 ## ⚙️ Estructura del proyecto
 
 ├── main.py           # FastAPI + SSE + manejo de uploads
+
 ├── templates/
+
 │   └── index.html    # Frontend: subida de imágenes y rendering SSE
+
 ├── temp/             # Carpeta donde se guardan los archivos temporales (imágenes subidas)
+
 ├── requirements.txt  # Dependencias Python
+
 └── README.md         # Documentación del proyecto
 
 ---
