@@ -9,3 +9,5 @@ wheels/
 # Virtual environments
 .venv
 fotos/
+static/
+templates/index_files

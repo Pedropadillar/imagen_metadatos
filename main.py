@@ -4,6 +4,7 @@ import queue
 import openai 
 import time
 import asyncio
+import json
 import tempfile
 from typing import List
 import base64
@@ -21,8 +22,9 @@ from fastapi.staticfiles import StaticFiles
 # Ensure your LM Studio model is capable of vision input and can extract keywords.
 sistema = """
 Examina detenidamente la imagen proporcionada. Dame una descripción y extrae las palabras clave que describan los objetos, escenas y sujetos principales presentes en la imagen.
-Devuelve los resultados en formato JSON y en español.
+Devuelve los resultados en formato JSON y en español con la siguientes claves: description y keywords.
 Escribe directamente la descripción y las palabras clave, sin respuestas adicionales o explicaciones innecesarias como "Aquí tienes la descripción y las palabras clave de la imagen:".
+No incluyas etiquetas de código o formato adicional, simplemente devuelve el JSON.
 """
 # Configure the client for LM Studio
 client = openai.OpenAI(
@@ -32,15 +34,11 @@ client = openai.OpenAI(
 
 app = FastAPI()
 
-# Create a 'static' directory if it doesn't exist
-if not os.path.exists("static"):
-    os.makedirs("static")
-
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 async def serve_index():
-    return FileResponse("static/index.html")
+    return FileResponse("templates/index.html")
 
 # Store queues per task_id (each task_id will now represent a batch of images)
 tasks_queues: dict[str, queue.Queue] = {}
@@ -54,7 +52,9 @@ async def upload_files(background_tasks: BackgroundTasks, files: List[UploadFile
     print(f"Recibido/s {len(files)} fichero/s.")
 
     task_id = str(uuid.uuid4())
-    tmp_dir = tempfile.gettempdir()
+    tmp_dir = os.path.join(os.path.dirname(__file__), 'temp')
+    if not os.path.exists(tmp_dir):
+        os.makedirs(tmp_dir)
     uploaded_image_info = []
 
     for file in files:
@@ -93,7 +93,7 @@ async def upload_files(background_tasks: BackgroundTasks, files: List[UploadFile
     # Start the background task to process images
     background_tasks.add_task(process_images, task_id, uploaded_image_info)
     response_data = {"task_id": task_id, "uploaded_images": [{"image_id": img["image_id"], "filename": img["filename"]} for img in uploaded_image_info]}
-    print(f"Sending initial response to client for task_id {task_id}: {response_data}")
+    print(f"enviando respuesta inicial al cliente para {task_id}: {response_data}")
     return response_data
 
 def process_images(task_id: str, image_info_list: List[dict]):
@@ -132,7 +132,7 @@ def process_images(task_id: str, image_info_list: List[dict]):
                 os.remove(file_path) # Clean up file even on read error
             continue # Skip to next image
 
-        q.put({"event": "status", "data": f"Sending {filename} to model...", "image_id": image_id})
+        q.put({"event": "status", "data": f"Enviando {filename} al modelo...", "image_id": image_id})
 
         # --- OPENAI API CALL FOR IMAGE ANALYSIS ---
         # THIS PART IS HIGHLY DEPENDENT ON YOUR LM STUDIO MODEL'S CAPABILITIES AND API
@@ -167,24 +167,34 @@ def process_images(task_id: str, image_info_list: List[dict]):
             # Send a final 'image_complete' event for each image
             final_keywords = extracted_keywords.strip()
             #print(f"[{image_id} - {filename}] Processing complete. Keywords: {final_keywords}") # Debugging
-            q.put({"event": "image_complete", "image_id": image_id, "keywords": final_keywords})
+            #Filtrar posibles etiquetas ```json y ```
+            final_keywords = final_keywords.replace("```json", "").replace("```", "").strip()
+            print(f"\nRespuesta completa para {filename} (ID {image_id}):\n{final_keywords}\n")
 
-        except openai.OpenAIError as api_error:
-            # Catch specific OpenAI API errors (e.g., model not found, invalid request)
-            print(f"API Error processing {filename} (image_id: {image_id}): {api_error}")
-            q.put({"event": "error", "image_id": image_id, "data": f"API Error: {str(api_error)}"})
+            try:
+                result_json = json.loads(final_keywords)
+                description = result_json.get('description', '')
+                keywords = result_json.get('keywords', '')
+                q.put({
+                    "event": "image_complete",
+                    "image_id": image_id,
+                    "data": json.dumps({"description": description, "keywords": keywords}, ensure_ascii=False)
+                })
+            except Exception as e:
+                print(f"No se pudo parsear como JSON, se envía como texto plano. Error: {e}")
+                q.put({
+                    "event": "image_complete",
+                    "image_id": image_id,
+                    "data": json.dumps({"description": final_keywords, "keywords": ""}, ensure_ascii=False)
+                })
         except Exception as e:
-            # Catch any other unexpected errors during model interaction
-            print(f"Unexpected error processing {filename} (image_id: {image_id}): {e}")
-            q.put({"event": "error", "image_id": image_id, "data": f"Unexpected error: {str(e)}"})
-        finally:
-            # Clean up the temporary image file after processing, regardless of success or failure
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                print(f"Cleaned up temporary file: {file_path}")
-
-    q.put({"event": "status", "data": "Process completed for all images."})
-    q.put({"event": "end", "data": ""}) # Signal the end of the batch processing
+            print(f"Error en la llamada al modelo o procesamiento de tokens para {filename}: {e}")
+            q.put({
+                "event": "image_complete",
+                "image_id": image_id,
+                "end": True,
+                "data": json.dumps({"description": f"Error: {e}", "keywords": ""}, ensure_ascii=False)
+            })
 
 @app.get("/stream/{task_id}")
 async def stream(task_id: str):
