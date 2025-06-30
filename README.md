@@ -39,7 +39,6 @@ Este proyecto es una aplicación web simple que permite subir una o varias imág
 
    uvicorn main:app --reload
 
-
 5. **Abrir en el navegador**
    Navega a `http://localhost:8000` para ver la interfaz.
 

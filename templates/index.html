@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Subida y extracción con LM Studio</title>
   <style>
-    body { font-family: sans-serif; max-width: 900px; margin: auto; padding: 1rem; }
+    body { font-family: sans-serif; max-width: 1000px; margin: auto; padding: 1rem; }
     #drop-area { border: 2px dashed #666; padding: 2rem; text-align: center; margin-bottom: 1rem; cursor: pointer; }
     #drop-area.hover { background: #f0f0f0; }
     #fileElem { display: none; }
@@ -35,10 +35,10 @@
   <progress id="uploadProgress" max="100" value="0"></progress>
   <div id="log" role="log"></div>
   <div id="output-container" role="region"></div>
-  <div id="controls" style="display:none; margin-top:1rem;">
+  <div id="controls">
     <button id="copyAllBtn">Copiar todos los resultados</button>
-    <button id="downloadJsonAll">Descargar JSON (todos)</button>
-    <button id="downloadCsvAll">Descargar CSV (todos)</button>
+    <button id="downloadJsonAll">Descargar JSON</button>
+    <button id="downloadCsvAll">Descargar CSV</button>
   </div>
   <script>
     document.addEventListener("DOMContentLoaded", () => {
@@ -127,7 +127,16 @@
         const descPara = container.querySelector('p.description');
         const kwPara = container.querySelector('p.keywords');
         descPara.innerHTML = "<b>Descripción:</b> " + (allResults[id].description || "");
-        kwPara.innerHTML = "<b>Palabras clave:</b> " + (allResults[id].keywords || "");
+        // Formatear palabras clave: espacio después de cada coma, sea string o array
+        let keywords = allResults[id].keywords || "";
+        if (Array.isArray(keywords)) {
+          keywords = keywords.join(', ');
+        } else if (typeof keywords === "string") {
+          keywords = keywords.split(',').map(s => s.trim()).filter(Boolean).join(', ');
+        } else {
+          keywords = String(keywords);
+        }
+        kwPara.innerHTML = "<b>Palabras clave:</b> " + keywords;
       }
 
       document.getElementById("copyAllBtn").onclick = () => {
@@ -149,7 +158,16 @@
         let c = "Filename,Description,Keywords\n";
         for (const id in allResults) {
           const r = allResults[id];
-          c += `"${r.filename.replace(/"/g,'""')}","${r.description.replace(/"/g,'""')}","${r.keywords.replace(/"/g,'""')}"\n`;
+          // Asegurar que keywords es string y con espacio tras la coma
+          let keywords = r.keywords;
+          if (Array.isArray(keywords)) {
+            keywords = keywords.join(', ');
+          } else if (typeof keywords === "string") {
+            keywords = keywords.split(',').map(s => s.trim()).filter(Boolean).join(', ');
+          } else {
+            keywords = String(keywords ?? "");
+          }
+          c += `"${r.filename.replace(/"/g,'""')}","${r.description.replace(/"/g,'""')}","${keywords.replace(/"/g,'""')}"\n`;
         }
         const b = new Blob([c], { type: 'text/csv' }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "resultados.csv"; a.click(); URL.revokeObjectURL(a.href);
       };
