@@ -1,4 +1,4 @@
-# Subir y Procesar Imágenes con FastAPI y SSE
+# Subir y Procesar Imágenes con IA
 
 Este proyecto es una aplicación web simple que permite subir una o varias imágenes, procesarlas con un modelo de IA desde LM Studio, y mostrar la descripción y las palabras clave generadas junto a cada imagen en tiempo real, gracias a Server-Sent Events (SSE).
 
