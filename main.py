@@ -132,7 +132,7 @@ def process_images(task_id: str, image_info_list: List[dict]):
                 os.remove(file_path) # Clean up file even on read error
             continue # Skip to next image
 
-        q.put({"event": "status", "data": f"Enviando {filename} al modelo...", "image_id": image_id})
+        q.put({"event": "status", "data": f"Enviando {filename} al modelo. ESPERA...", "image_id": image_id})
 
         # --- OPENAI API CALL FOR IMAGE ANALYSIS ---
         # THIS PART IS HIGHLY DEPENDENT ON YOUR LM STUDIO MODEL'S CAPABILITIES AND API
