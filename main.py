@@ -9,6 +9,7 @@ import tempfile
 from typing import List
 import base64
 import mimetypes # To infer mimetype from file extension
+import sys
 
 from fastapi import FastAPI, File, UploadFile, BackgroundTasks
 from fastapi.responses import FileResponse, StreamingResponse
@@ -23,7 +24,7 @@ from fastapi.staticfiles import StaticFiles
 sistema = """
 Examina detenidamente la imagen proporcionada. Dame una descripción y extrae las palabras clave que describan los objetos, escenas y sujetos principales presentes en la imagen.
 Devuelve los resultados en formato JSON y en español con la siguientes claves: description y keywords.
-Escribe directamente la descripción y las palabras clave, sin respuestas adicionales o explicaciones innecesarias como "Aquí tienes la descripción y las palabras clave de la imagen:".
+Escribe directamente la descripción y las palabras clave, en español y sin respuestas adicionales o explicaciones innecesarias como "Aquí tienes la descripción y las palabras clave de la imagen:".
 No incluyas etiquetas de código o formato adicional, simplemente devuelve el JSON.
 """
 # Configure the client for LM Studio
@@ -227,3 +228,7 @@ async def stream(task_id: str):
                 break
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")

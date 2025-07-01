@@ -20,6 +20,16 @@
     .image-result img { width: 100px; height: 100px; object-fit: contain; margin-bottom: 10px; border: 1px solid #eee; }
     .image-result p { margin: 2px 0; }
     #controls { display: none; margin-top: 1rem; }
+    .file-preview img:hover, .image-result img:hover {
+      transform: scale(6.2);
+      z-index: 10;
+      position: relative;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      background: #fff;
+    }
+    .file-preview img, .image-result img {
+      transition: transform 0.2s cubic-bezier(.4,2,.6,1), box-shadow 0.2s;
+    }
   </style>
 </head>
 <body>
@@ -169,7 +179,9 @@
           }
           c += `"${r.filename.replace(/"/g,'""')}","${r.description.replace(/"/g,'""')}","${keywords.replace(/"/g,'""')}"\n`;
         }
-        const b = new Blob([c], { type: 'text/csv' }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "resultados.csv"; a.click(); URL.revokeObjectURL(a.href);
+        // Agregar BOM UTF-8 al inicio
+        const b = new Blob(["\uFEFF" + c], { type: 'text/csv' });
+        const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "resultados.csv"; a.click(); URL.revokeObjectURL(a.href);
       };
     });
   </script>

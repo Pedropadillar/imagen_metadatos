@@ -58,6 +58,9 @@ Este proyecto es una aplicación web simple que permite subir una o varias imág
 
 └── README.md         # Documentación del proyecto
 
+└── dist/             # Fichero ejecutable como aplicación de escritorio
+
+
 ---
 
 ## 🖥️ Uso

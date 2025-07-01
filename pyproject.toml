@@ -1,7 +1,18 @@
 [project]
 name = "imagen-metadatos"
-version = "0.1.0"
-description = "Add your description here"
+version = "1.0"
+description = "Extrae una descripción y palabras clave de imágenes"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastapi>=0.115.14",
+    "openai>=1.93.0",
+    "pyinstaller>=6.14.1",
+    "python-multipart>=0.0.20",
+    "uvicorn>=0.35.0",
+]
+
+[tool.uv.workspace]
+members = [
+    "venv",
+]
