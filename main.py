@@ -100,7 +100,7 @@ async def upload_files(background_tasks: BackgroundTasks, files: List[UploadFile
 def process_images(task_id: str, image_info_list: List[dict]):
     q = tasks_queues[task_id]
 
-    q.put({"event": "status", "data": f"Proceando {len(image_info_list)} imágenes..."})
+    q.put({"event": "status", "data": f"Procesando {len(image_info_list)} imágenes..."})
     time.sleep(0.3)
     for img_info in image_info_list:
         image_id = img_info["image_id"]
@@ -108,7 +108,7 @@ def process_images(task_id: str, image_info_list: List[dict]):
         filename = img_info["filename"]
 
         q.put({"event": "status", "data": f"Extracting features from {filename}...", "image_id": image_id})
-        time.sleep(0.1)
+        time.sleep(0.3)
 
         base64_image = None
         media_type = None
@@ -132,7 +132,7 @@ def process_images(task_id: str, image_info_list: List[dict]):
                 os.remove(file_path) # Clean up file even on read error
             continue # Skip to next image
 
-        q.put({"event": "status", "data": f"Sending {filename} to model...", "image_id": image_id})
+        q.put({"event": "status", "data": f"Enviando {filename} al modelo...", "image_id": image_id})
 
         # --- OPENAI API CALL FOR IMAGE ANALYSIS ---
         # THIS PART IS HIGHLY DEPENDENT ON YOUR LM STUDIO MODEL'S CAPABILITIES AND API
@@ -151,7 +151,7 @@ def process_images(task_id: str, image_info_list: List[dict]):
             # IMPORTANT: Replace "your-multimodal-model-name" with the actual model you are running in LM Studio
             # For example, "llava-v1.6-34b" or "gpt-4-vision-preview" if you're using a compatible local proxy
             response = client.chat.completions.create(
-                model="your-multimodal-model-name", # <--- *** CHANGE THIS ***
+                model="your-multimodal-model-name", # <--- *** PON TU MODELO ***
                 messages=messages,
                 stream=True,
                 max_tokens=4000 # Limit response length to avoid excessively long outputs
@@ -231,4 +231,4 @@ async def stream(task_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info", reload=True)

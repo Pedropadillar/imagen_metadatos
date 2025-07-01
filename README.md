@@ -15,7 +15,7 @@ Este proyecto es una aplicación web simple que permite subir una o varias imág
   - `Nombre de la imagen`
   - `Descripción`
   - `palabras_clave`
-
+- **Modelo de IA usado** Puedes usar cualquiera que reconoaca imágenes. A mi me ha funcionado muy bien gemma-3-12b-it-qat
 ---
 
 ## 🚀 Instalación y puesta en marcha

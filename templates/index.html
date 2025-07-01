@@ -127,6 +127,7 @@
           }
           updateUI(id);
         });
+        console(e.data)
         es.addEventListener("status", e => { const p = document.createElement("p"); p.textContent = e.data; logDiv.appendChild(p); logDiv.scrollTop = logDiv.scrollHeight; });
         es.addEventListener("end", () => { controls.style.display = "block"; es.close(); });
       }
@@ -179,9 +180,7 @@
           }
           c += `"${r.filename.replace(/"/g,'""')}","${r.description.replace(/"/g,'""')}","${keywords.replace(/"/g,'""')}"\n`;
         }
-        // Agregar BOM UTF-8 al inicio
-        const b = new Blob(["\uFEFF" + c], { type: 'text/csv' });
-        const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "resultados.csv"; a.click(); URL.revokeObjectURL(a.href);
+        const b = new Blob([c], { type: 'text/csv' }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "resultados.csv"; a.click(); URL.revokeObjectURL(a.href);
       };
     });
   </script>
