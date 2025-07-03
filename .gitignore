@@ -6,10 +6,10 @@ wheels/
 *.egg-info
 uv.lock
 seguridad/
+Fotos/
 
 # Virtual environments
 .venv
-fotos/
 static/
 templates/index_*
 temp/

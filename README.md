@@ -2,7 +2,7 @@
 
 Este proyecto es una aplicación web simple que permite subir una o varias imágenes, procesarlas con un modelo de IA desde LM Studio, y mostrar la descripción y las palabras clave generadas junto a cada imagen en tiempo real, gracias a Server-Sent Events (SSE).
 
----
+--- 
 
 ## 📋 Características
 
@@ -42,7 +42,10 @@ Este proyecto es una aplicación web simple que permite subir una o varias imág
 5. **Abrir en el navegador**
    Navega a `http://localhost:8000` para ver la interfaz.
 
----
+## Crear ejecutable .exe para Windows
+
+   pyinstaller --onedir main.py --add-data "templates;templates" --windowed --icon=icono.ico
+
 
 ## ⚙️ Estructura del proyecto
 
@@ -58,7 +61,7 @@ Este proyecto es una aplicación web simple que permite subir una o varias imág
 
 └── README.md         # Documentación del proyecto
 
-└── dist/             # Fichero ejecutable como aplicación de escritorio
+└── dist/        # Carpeta con el fichero ejecutable main.exe
 
 
 ---
